@@ -11,18 +11,22 @@ import api from './axios';
 export async function uploadFiles(files, sessionName, onProgress) {
   const formData = new FormData();
 
-  const fileMeta = files.map((file) => ({
-    name: file.name,
-    size: file.size,
-    type: file.type,
-    lastModified: file.lastModified,
-  }));
-
+  // Build fileMeta as object keyed by original filename
+  const fileMeta = {};
   files.forEach((file) => {
-    formData.append('files[]', file);
+    fileMeta[file.name] = {
+      lastModified: file.lastModified,
+      size: file.size,
+      type: file.type,
+    };
   });
 
-  formData.append('sessionName', sessionName);
+  // Backend Multer expects field name 'files' (not 'files[]')
+  files.forEach((file) => {
+    formData.append('files', file);
+  });
+
+  formData.append('sessionName', sessionName || '');
   formData.append('fileMeta', JSON.stringify(fileMeta));
 
   const response = await api.post('/analysis/upload', formData, {
@@ -49,14 +53,15 @@ export async function uploadFiles(files, sessionName, onProgress) {
  * @param {number} [page=1]
  * @param {number} [limit=10]
  * @param {string} [status] - Optional status filter
- * @returns {Promise<object>}
+ * @returns {Promise<object>} { items: [], pagination: {} }
  */
 export async function getSessions(page = 1, limit = 10, status) {
   const params = { page, limit };
   if (status) params.status = status;
 
   const response = await api.get('/analysis/sessions', { params });
-  return response.data.data;
+  // Backend returns paginated: { data: [...], pagination: {...} }
+  return response.data;
 }
 
 /**
@@ -81,7 +86,7 @@ export async function getSessionFiles(sessionId, params = {}) {
   const response = await api.get(`/analysis/sessions/${sessionId}/files`, {
     params,
   });
-  return response.data.data;
+  return response.data;
 }
 
 /**

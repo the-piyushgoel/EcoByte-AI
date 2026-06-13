@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   Files,
   Copy,
@@ -12,7 +12,6 @@ import {
   ArrowLeft,
   Loader2,
   AlertCircle,
-  ChevronDown,
   FileWarning,
 } from 'lucide-react';
 import {
@@ -29,15 +28,6 @@ import RecommendationList from '../components/RecommendationList';
 import FileTable from '../components/FileTable';
 
 /* ─── Helpers ──────────────────────────────────────────────────────── */
-
-function formatBytes(bytes) {
-  if (bytes == null || isNaN(bytes)) return '0 B';
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(Math.abs(bytes)) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-}
 
 function formatMB(mb) {
   if (mb == null || isNaN(mb)) return '0 MB';
@@ -57,18 +47,48 @@ function formatDate(dateStr) {
   });
 }
 
-function getGradeLabel(score) {
-  if (score == null) return { label: 'N/A', color: 'text-white/50', desc: 'No data available' };
-  if (score <= 20) return { label: 'Excellent', color: 'text-emerald-400', desc: 'Your digital footprint is very clean!' };
-  if (score <= 40) return { label: 'Good', color: 'text-green-400', desc: 'Mostly clean with minor improvements possible.' };
-  if (score <= 60) return { label: 'Fair', color: 'text-amber-400', desc: 'Some digital waste detected. Review recommendations.' };
-  if (score <= 80) return { label: 'Poor', color: 'text-orange-400', desc: 'Significant waste found. Action recommended.' };
-  return { label: 'Critical', color: 'text-red-400', desc: 'Heavy digital waste. Immediate cleanup recommended.' };
+function getGradeInfo(wasteScoreObj) {
+  const score = wasteScoreObj?.overallScore ?? 0;
+  const grade = wasteScoreObj?.grade ?? 'A';
+  const label = wasteScoreObj?.label ?? 'Excellent';
+
+  const colorMap = {
+    A: 'text-emerald-400',
+    B: 'text-green-400',
+    C: 'text-amber-400',
+    D: 'text-orange-400',
+    F: 'text-red-400',
+  };
+  const descMap = {
+    A: 'Your digital footprint is very clean!',
+    B: 'Mostly clean with minor improvements possible.',
+    C: 'Some digital waste detected. Review recommendations.',
+    D: 'Significant waste found. Action recommended.',
+    F: 'Heavy digital waste. Immediate cleanup recommended.',
+  };
+
+  return {
+    score,
+    grade,
+    label,
+    color: colorMap[grade] || 'text-white/50',
+    desc: descMap[grade] || 'No data available.',
+  };
 }
 
 /* ─── Stat Card ────────────────────────────────────────────────────── */
 
 function StatCard({ icon: Icon, label, value, subValue, color = 'text-accent-emerald', delay = 0 }) {
+  // Map color class to bg with opacity
+  const bgMap = {
+    'text-accent-emerald': 'bg-emerald-500/15',
+    'text-red-400': 'bg-red-500/15',
+    'text-amber-400': 'bg-amber-500/15',
+    'text-blue-400': 'bg-blue-500/15',
+    'text-emerald-400': 'bg-emerald-500/15',
+    'text-teal-400': 'bg-teal-500/15',
+  };
+
   return (
     <motion.div
       className="glass rounded-2xl p-5"
@@ -77,7 +97,7 @@ function StatCard({ icon: Icon, label, value, subValue, color = 'text-accent-eme
       transition={{ duration: 0.4, delay }}
     >
       <div className="flex items-start justify-between mb-3">
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color.replace('text-', 'bg-').replace(/\d00/, '500/15')}`}>
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${bgMap[color] || 'bg-white/10'}`}>
           <Icon size={20} className={color} />
         </div>
       </div>
@@ -164,43 +184,58 @@ export default function DashboardPage() {
     }
   }
 
-  /* ── Derived data (safely extracted) ── */
-  const summary = session?.summary || session?.analysis?.summary || {};
-  const wasteScore = session?.wasteScore ?? summary?.wasteScore ?? null;
-  const files = session?.files || session?.analysis?.files || [];
-  const carbonImpact = session?.carbonImpact || session?.analysis?.carbonImpact || {};
-  const storageRecovery = session?.storageRecovery || session?.analysis?.storageRecovery || {};
-  const recommendations = session?.recommendations || session?.analysis?.recommendations || [];
-  const grade = getGradeLabel(wasteScore);
+  /* ── Derived data (safely extracted from backend response) ── */
+  const summary = session?.summary || {};
+  const wasteScore = session?.wasteScore || {};
+  const files = session?.files || [];
+  const carbonImpact = session?.carbonImpact || {};
+  const storageRecovery = session?.storageRecovery || {};
+  const recommendations = session?.recommendations || [];
+  const gradeInfo = getGradeInfo(wasteScore);
+
+  /* ── Normalize file data for FileTable ── */
+  const normalizedFiles = useMemo(() => {
+    return files.map((f) => ({
+      ...f,
+      // FileTable reads these keys:
+      name: f.originalName || f.name || 'unknown',
+      extension: f.extension || '',
+      size: f.sizeBytes ?? f.size ?? 0,
+      lastModified: f.modifiedAt || f.lastModified || f.modifiedDate || null,
+      classification: f.classification || 'active',
+      isDuplicate: f.isDuplicate || false,
+      isInactive: f.isInactive || false,
+    }));
+  }, [files]);
 
   /* ── File filtering ── */
   const filteredFiles = useMemo(() => {
-    if (!files.length) return [];
+    if (!normalizedFiles.length) return [];
     switch (fileFilter) {
       case 'active':
-        return files.filter((f) => f.classification === 'active' || f.status === 'active');
+        return normalizedFiles.filter((f) => f.classification === 'active');
       case 'archive':
-        return files.filter((f) => f.classification === 'archive' || f.status === 'archive');
+        return normalizedFiles.filter((f) => f.classification === 'archive');
       case 'waste':
-        return files.filter((f) => f.classification === 'waste' || f.status === 'waste');
+        return normalizedFiles.filter((f) => f.classification === 'waste');
       case 'duplicates':
-        return files.filter((f) => f.isDuplicate === true || f.duplicate === true);
+        return normalizedFiles.filter((f) => f.isDuplicate === true);
       default:
-        return files;
+        return normalizedFiles;
     }
-  }, [files, fileFilter]);
+  }, [normalizedFiles, fileFilter]);
 
   const fileCounts = useMemo(() => {
-    const counts = { all: files.length, active: 0, archive: 0, waste: 0, duplicates: 0 };
-    files.forEach((f) => {
-      const cls = f.classification || f.status || '';
+    const counts = { all: normalizedFiles.length, active: 0, archive: 0, waste: 0, duplicates: 0 };
+    normalizedFiles.forEach((f) => {
+      const cls = f.classification || '';
       if (cls === 'active') counts.active++;
       if (cls === 'archive') counts.archive++;
       if (cls === 'waste') counts.waste++;
-      if (f.isDuplicate || f.duplicate) counts.duplicates++;
+      if (f.isDuplicate) counts.duplicates++;
     });
     return counts;
-  }, [files]);
+  }, [normalizedFiles]);
 
   /* ── Loading state ── */
   if (loading) {
@@ -252,8 +287,8 @@ export default function DashboardPage() {
 
   /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
-  const sessionName = session?.sessionName || session?.name || 'Analysis Session';
-  const sessionDate = session?.createdAt || session?.created_at || session?.date;
+  const sessionName = session?.sessionName || 'Analysis Session';
+  const sessionDate = session?.createdAt;
   const sessionStatus = session?.status || 'completed';
 
   return (
@@ -337,16 +372,18 @@ export default function DashboardPage() {
         >
           <div className="flex flex-col sm:flex-row items-center gap-8">
             <div className="shrink-0">
-              <ScoreGauge score={wasteScore} size={180} />
+              <ScoreGauge
+                score={gradeInfo.score}
+                grade={gradeInfo.grade}
+                label="Digital Waste Score"
+              />
             </div>
             <div className="text-center sm:text-left">
-              <div className={`text-3xl font-bold mb-1 ${grade.color}`}>{grade.label}</div>
-              <p className="text-white/50 text-sm leading-relaxed max-w-md">{grade.desc}</p>
-              {wasteScore != null && (
-                <p className="text-white/30 text-xs mt-2">
-                  Waste Score: {Math.round(wasteScore)} / 100
-                </p>
-              )}
+              <div className={`text-3xl font-bold mb-1 ${gradeInfo.color}`}>{gradeInfo.label}</div>
+              <p className="text-white/50 text-sm leading-relaxed max-w-md">{gradeInfo.desc}</p>
+              <p className="text-white/30 text-xs mt-2">
+                Waste Score: {gradeInfo.score} / 100
+              </p>
             </div>
           </div>
         </motion.div>
@@ -405,14 +442,11 @@ export default function DashboardPage() {
           viewport={{ once: true }}
           transition={{ duration: 0.5, delay: 0.2 }}
         >
-          <div className="glass rounded-2xl p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">Storage Breakdown</h3>
-            <StoragePieChart data={summary} />
-          </div>
-          <div className="glass rounded-2xl p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">Waste Distribution</h3>
-            <WasteBarChart data={session?.wasteBreakdown || session?.analysis?.wasteBreakdown || summary} />
-          </div>
+          {/* StoragePieChart expects prop: summary */}
+          <StoragePieChart summary={summary} />
+
+          {/* WasteBarChart expects prop: wasteScore */}
+          <WasteBarChart wasteScore={wasteScore} />
         </motion.div>
 
         {/* ─── Impact Row ─── */}
@@ -423,23 +457,23 @@ export default function DashboardPage() {
           viewport={{ once: true }}
           transition={{ duration: 0.5, delay: 0.1 }}
         >
-          <CarbonImpactCard data={carbonImpact} />
-          <StorageRecoveryCard data={storageRecovery} />
+          {/* CarbonImpactCard expects prop: carbonImpact */}
+          <CarbonImpactCard carbonImpact={carbonImpact} />
+
+          {/* StorageRecoveryCard expects prop: storageRecovery */}
+          <StorageRecoveryCard storageRecovery={storageRecovery} />
         </motion.div>
 
         {/* ─── Recommendations ─── */}
-        {recommendations.length > 0 && (
-          <motion.div
-            className="mb-8"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-          >
-            <h3 className="text-lg font-semibold text-white mb-4">Recommendations</h3>
-            <RecommendationList recommendations={recommendations} />
-          </motion.div>
-        )}
+        <motion.div
+          className="mb-8"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+        >
+          <RecommendationList recommendations={recommendations} />
+        </motion.div>
 
         {/* ─── Files Table ─── */}
         <motion.div
@@ -485,12 +519,10 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="glass rounded-2xl overflow-hidden">
-            <FileTable files={filteredFiles} />
-          </div>
+          <FileTable files={filteredFiles} />
 
           <p className="text-xs text-white/25 mt-3">
-            Showing {filteredFiles.length} of {files.length} file{files.length !== 1 ? 's' : ''}
+            Showing {filteredFiles.length} of {normalizedFiles.length} file{normalizedFiles.length !== 1 ? 's' : ''}
           </p>
         </motion.div>
       </div>

@@ -71,8 +71,10 @@ export default function UploadPage() {
 
   async function fetchSessions() {
     try {
-      const data = await getSessions();
-      setSessions(Array.isArray(data) ? data : data.sessions || []);
+      const res = await getSessions(1, 5);
+      // Backend returns { success, data: [...], pagination: {...} }
+      const items = Array.isArray(res?.data) ? res.data : [];
+      setSessions(items);
     } catch {
       /* ignore */
     }
@@ -142,7 +144,7 @@ export default function UploadPage() {
       }
     } catch (err) {
       setUploadState('error');
-      setErrorMsg(err?.response?.data?.error || err?.message || 'Upload failed. Please try again.');
+      setErrorMsg(err?.response?.data?.message || err?.message || 'Upload failed. Please try again.');
     }
   }
 
@@ -480,7 +482,7 @@ export default function UploadPage() {
                   const name = session.sessionName || session.name || 'Unnamed Session';
                   const date = session.createdAt || session.created_at || session.date;
                   const fileCount = session.fileCount || session.totalFiles || session.summary?.totalFiles || 0;
-                  const wasteScore = session.wasteScore ?? session.summary?.wasteScore ?? null;
+                  const wasteScore = session.wasteScore?.overallScore ?? session.wasteScore ?? null;
 
                   return (
                     <div key={id} className="relative group">
