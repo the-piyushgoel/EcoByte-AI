@@ -7,8 +7,6 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
-
-// ── Request interceptor ────────────────────────────────────────────
 api.interceptors.request.use(
   (config) => {
     if (import.meta.env.DEV) {
@@ -30,7 +28,6 @@ api.interceptors.request.use(
   }
 );
 
-// ── Response interceptor ───────────────────────────────────────────
 api.interceptors.response.use(
   (response) => {
     if (import.meta.env.DEV) {

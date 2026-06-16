@@ -1,9 +1,3 @@
-/**
- * server.js
- * EcoByte AI – Digital Waste Intelligence & Sustainability Analytics Platform
- * Entry point for the Express backend.
- */
-
 require('dotenv').config();
 
 const express = require('express');
@@ -15,27 +9,23 @@ const connectDB = require('./config/db');
 const requestLogger = require('./middleware/requestLogger');
 const { handleMongooseError, globalErrorHandler } = require('./middleware/errorHandler');
 
-// ─── Route imports ────────────────────────────────────────────────────────────
 const healthRoutes = require('./routes/health.routes');
 const analysisRoutes = require('./routes/analysis.routes');
 
-// ─── App init ─────────────────────────────────────────────────────────────────
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// ─── Ensure uploads directory exists ─────────────────────────────────────────
 const uploadsDir = path.resolve(__dirname, process.env.UPLOAD_DIR || 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
   console.log(`📁 Created uploads directory: ${uploadsDir}`);
 }
 
-// ─── Global Middleware ────────────────────────────────────────────────────────
 app.use(
   cors({
     origin: [
       'http://localhost:5173',
-      'https://eco-byte-ai.vercel.app'
+      'https://eco-byte-lexsadie4-piyush-goels-projects-26929169.vercel.app',
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -46,15 +36,10 @@ app.use(
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(requestLogger);
-
-// Serve uploaded files statically (useful for file preview)
 app.use('/uploads', express.static(uploadsDir));
 
-// ─── API Routes ───────────────────────────────────────────────────────────────
 app.use('/api/health', healthRoutes);
 app.use('/api/analysis', analysisRoutes);
-
-// ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -62,12 +47,9 @@ app.use((req, res) => {
     timestamp: new Date().toISOString(),
   });
 });
-
-// ─── Error Handlers ───────────────────────────────────────────────────────────
 app.use(handleMongooseError);
 app.use(globalErrorHandler);
 
-// ─── Connect DB & Start Server ────────────────────────────────────────────────
 const startServer = async () => {
   await connectDB();
 
@@ -81,7 +63,6 @@ const startServer = async () => {
     console.log('╚════════════════════════════════════════════════╝\n');
   });
 
-  // ── Graceful shutdown ──────────────────────────────────────────────────────
   const shutdown = (signal) => {
     console.log(`\n⚡ Received ${signal}. Shutting down gracefully...`);
     server.close(() => {

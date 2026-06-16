@@ -10,8 +10,6 @@ import api from './axios';
  */
 export async function uploadFiles(files, sessionName, onProgress) {
   const formData = new FormData();
-
-  // Build fileMeta as object keyed by original filename
   const fileMeta = {};
   files.forEach((file) => {
     fileMeta[file.name] = {
@@ -20,8 +18,6 @@ export async function uploadFiles(files, sessionName, onProgress) {
       type: file.type,
     };
   });
-
-  // Backend Multer expects field name 'files' (not 'files[]')
   files.forEach((file) => {
     formData.append('files', file);
   });
@@ -33,7 +29,7 @@ export async function uploadFiles(files, sessionName, onProgress) {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
-    timeout: 120000, // 2 min for large uploads
+    timeout: 120000,
     onUploadProgress: (progressEvent) => {
       if (onProgress && progressEvent.total) {
         const percent = Math.round(
@@ -48,7 +44,6 @@ export async function uploadFiles(files, sessionName, onProgress) {
 }
 
 /**
- * Fetch paginated analysis sessions.
  *
  * @param {number} [page=1]
  * @param {number} [limit=10]
@@ -60,12 +55,10 @@ export async function getSessions(page = 1, limit = 10, status) {
   if (status) params.status = status;
 
   const response = await api.get('/analysis/sessions', { params });
-  // Backend returns paginated: { data: [...], pagination: {...} }
   return response.data;
 }
 
 /**
- * Fetch a single session by ID.
  *
  * @param {string} sessionId
  * @returns {Promise<object>}
@@ -76,7 +69,6 @@ export async function getSessionById(sessionId) {
 }
 
 /**
- * Fetch files belonging to a session.
  *
  * @param {string} sessionId
  * @param {object} [params] - Query params for filtering/sorting
@@ -90,7 +82,7 @@ export async function getSessionFiles(sessionId, params = {}) {
 }
 
 /**
- * Fetch duplicate file groups for a session.
+
  *
  * @param {string} sessionId
  * @returns {Promise<object>}
@@ -101,7 +93,6 @@ export async function getSessionDuplicates(sessionId) {
 }
 
 /**
- * Delete a session and all its associated data.
  *
  * @param {string} sessionId
  * @returns {Promise<object>}
