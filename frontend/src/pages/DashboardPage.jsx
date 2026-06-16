@@ -25,16 +25,13 @@ import WasteBarChart from '../components/WasteBarChart';
 import CarbonImpactCard from '../components/CarbonImpactCard';
 import StorageRecoveryCard from '../components/StorageRecoveryCard';
 import RecommendationList from '../components/RecommendationList';
+import AiInsightsCard from '../components/AiInsightsCard';
 import FileTable from '../components/FileTable';
-
-/* ─── Helpers ──────────────────────────────────────────────────────── */
-
 function formatMB(mb) {
   if (mb == null || isNaN(mb)) return '0 MB';
   if (mb >= 1024) return (mb / 1024).toFixed(1) + ' GB';
   return parseFloat(mb).toFixed(1) + ' MB';
 }
-
 function formatDate(dateStr) {
   if (!dateStr) return '';
   const d = new Date(dateStr);
@@ -46,7 +43,6 @@ function formatDate(dateStr) {
     minute: '2-digit',
   });
 }
-
 function getGradeInfo(wasteScoreObj) {
   const score = wasteScoreObj?.overallScore ?? 0;
   const grade = wasteScoreObj?.grade ?? 'A';
@@ -75,11 +71,7 @@ function getGradeInfo(wasteScoreObj) {
     desc: descMap[grade] || 'No data available.',
   };
 }
-
-/* ─── Stat Card ────────────────────────────────────────────────────── */
-
 function StatCard({ icon: Icon, label, value, subValue, color = 'text-accent-emerald', delay = 0 }) {
-  // Map color class to bg with opacity
   const bgMap = {
     'text-accent-emerald': 'bg-emerald-500/15',
     'text-red-400': 'bg-red-500/15',
@@ -88,7 +80,6 @@ function StatCard({ icon: Icon, label, value, subValue, color = 'text-accent-eme
     'text-emerald-400': 'bg-emerald-500/15',
     'text-teal-400': 'bg-teal-500/15',
   };
-
   return (
     <motion.div
       className="glass rounded-2xl p-5"
@@ -107,9 +98,6 @@ function StatCard({ icon: Icon, label, value, subValue, color = 'text-accent-eme
     </motion.div>
   );
 }
-
-/* ─── Filter Tab Button ────────────────────────────────────────────── */
-
 function FilterTab({ label, count, active, onClick }) {
   return (
     <button
@@ -133,29 +121,19 @@ function FilterTab({ label, count, active, onClick }) {
     </button>
   );
 }
-
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   DASHBOARD PAGE COMPONENT
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-
 export default function DashboardPage() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
-
-  /* ── State ── */
   const [session, setSession] = useState(null);
   const [duplicates, setDuplicates] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [fileFilter, setFileFilter] = useState('all');
-
-  /* ── Data fetch ── */
   useEffect(() => {
     if (!sessionId) return;
     setLoading(true);
     setError(null);
-
     Promise.all([
       getSessionById(sessionId),
       getSessionDuplicates(sessionId).catch(() => null),
@@ -173,31 +151,24 @@ export default function DashboardPage() {
       })
       .finally(() => setLoading(false));
   }, [sessionId]);
-
-  /* ── Delete ── */
   async function handleDelete() {
     try {
       await deleteSession(sessionId);
       navigate('/upload');
     } catch {
-      /* ignore */
     }
   }
-
-  /* ── Derived data (safely extracted from backend response) ── */
   const summary = session?.summary || {};
   const wasteScore = session?.wasteScore || {};
   const files = session?.files || [];
   const carbonImpact = session?.carbonImpact || {};
   const storageRecovery = session?.storageRecovery || {};
   const recommendations = session?.recommendations || [];
+  const aiAnalysis = session?.aiAnalysis || null;
   const gradeInfo = getGradeInfo(wasteScore);
-
-  /* ── Normalize file data for FileTable ── */
   const normalizedFiles = useMemo(() => {
     return files.map((f) => ({
       ...f,
-      // FileTable reads these keys:
       name: f.originalName || f.name || 'unknown',
       extension: f.extension || '',
       size: f.sizeBytes ?? f.size ?? 0,
@@ -207,8 +178,6 @@ export default function DashboardPage() {
       isInactive: f.isInactive || false,
     }));
   }, [files]);
-
-  /* ── File filtering ── */
   const filteredFiles = useMemo(() => {
     if (!normalizedFiles.length) return [];
     switch (fileFilter) {
@@ -236,8 +205,6 @@ export default function DashboardPage() {
     });
     return counts;
   }, [normalizedFiles]);
-
-  /* ── Loading state ── */
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -252,8 +219,6 @@ export default function DashboardPage() {
       </div>
     );
   }
-
-  /* ── Error / Not Found ── */
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center px-6">
@@ -284,23 +249,18 @@ export default function DashboardPage() {
       </div>
     );
   }
-
-  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-
   const sessionName = session?.sessionName || 'Analysis Session';
   const sessionDate = session?.createdAt;
   const sessionStatus = session?.status || 'completed';
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Background */}
       <div className="fixed inset-0 pointer-events-none" aria-hidden="true">
         <div className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-accent-emerald/4 blur-[120px]" />
         <div className="absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full bg-accent-teal/3 blur-[100px]" />
       </div>
 
       <div className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-6 py-10">
-        {/* ─── Dashboard Header ─── */}
         <motion.div
           className="mb-8"
           initial={{ opacity: 0, y: 20 }}
@@ -318,7 +278,6 @@ export default function DashboardPage() {
               </Link>
               <h1 className="text-2xl sm:text-3xl font-bold text-white">{sessionName}</h1>
             </div>
-
             <div className="flex items-center gap-3">
               <span
                 className={`text-xs font-medium px-3 py-1 rounded-full ${
@@ -362,8 +321,6 @@ export default function DashboardPage() {
             <p className="text-sm text-white/30">{formatDate(sessionDate)}</p>
           )}
         </motion.div>
-
-        {/* ─── Score Overview ─── */}
         <motion.div
           className="glass rounded-2xl p-6 sm:p-8 mb-8"
           initial={{ opacity: 0, y: 20 }}
@@ -387,8 +344,6 @@ export default function DashboardPage() {
             </div>
           </div>
         </motion.div>
-
-        {/* ─── Stats Cards Grid ─── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           <StatCard
             icon={Files}
@@ -433,8 +388,6 @@ export default function DashboardPage() {
             delay={0.4}
           />
         </div>
-
-        {/* ─── Charts Row ─── */}
         <motion.div
           className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8"
           initial={{ opacity: 0, y: 20 }}
@@ -442,14 +395,9 @@ export default function DashboardPage() {
           viewport={{ once: true }}
           transition={{ duration: 0.5, delay: 0.2 }}
         >
-          {/* StoragePieChart expects prop: summary */}
           <StoragePieChart summary={summary} />
-
-          {/* WasteBarChart expects prop: wasteScore */}
           <WasteBarChart wasteScore={wasteScore} />
         </motion.div>
-
-        {/* ─── Impact Row ─── */}
         <motion.div
           className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8"
           initial={{ opacity: 0, y: 20 }}
@@ -457,14 +405,20 @@ export default function DashboardPage() {
           viewport={{ once: true }}
           transition={{ duration: 0.5, delay: 0.1 }}
         >
-          {/* CarbonImpactCard expects prop: carbonImpact */}
           <CarbonImpactCard carbonImpact={carbonImpact} />
-
-          {/* StorageRecoveryCard expects prop: storageRecovery */}
           <StorageRecoveryCard storageRecovery={storageRecovery} />
         </motion.div>
-
-        {/* ─── Recommendations ─── */}
+        {aiAnalysis && (
+          <motion.div
+            className="mb-8"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+          >
+            <AiInsightsCard aiAnalysis={aiAnalysis} files={normalizedFiles} />
+          </motion.div>
+        )}
         <motion.div
           className="mb-8"
           initial={{ opacity: 0, y: 20 }}
@@ -474,8 +428,6 @@ export default function DashboardPage() {
         >
           <RecommendationList recommendations={recommendations} />
         </motion.div>
-
-        {/* ─── Files Table ─── */}
         <motion.div
           className="mb-12"
           initial={{ opacity: 0, y: 20 }}
@@ -518,9 +470,7 @@ export default function DashboardPage() {
               />
             </div>
           </div>
-
           <FileTable files={filteredFiles} />
-
           <p className="text-xs text-white/25 mt-3">
             Showing {filteredFiles.length} of {normalizedFiles.length} file{normalizedFiles.length !== 1 ? 's' : ''}
           </p>
