@@ -1,8 +1,4 @@
 const mongoose = require('mongoose');
-
-// ─────────────────────────────────────────────
-// Sub-schema: Individual File Record
-// ─────────────────────────────────────────────
 const FileRecordSchema = new mongoose.Schema(
   {
     originalName: {
@@ -44,7 +40,6 @@ const FileRecordSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
-    // ── Classification ──
     isDuplicate: {
       type: Boolean,
       default: false,
@@ -53,18 +48,15 @@ const FileRecordSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    // 'active' | 'archive' | 'waste'
     classification: {
       type: String,
       enum: ['active', 'archive', 'waste'],
       default: 'active',
     },
-    // Days since last modification
     daysSinceModified: {
       type: Number,
       default: 0,
     },
-    // Reference to the hash group if duplicate
     duplicateGroupId: {
       type: String,
       default: null,
@@ -73,13 +65,13 @@ const FileRecordSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    aiPrediction: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
   },
   { _id: true }
 );
-
-// ─────────────────────────────────────────────
-// Sub-schema: Carbon Impact Details
-// ─────────────────────────────────────────────
 const CarbonImpactSchema = new mongoose.Schema(
   {
     totalStorageGB: { type: Number, default: 0 },
@@ -87,14 +79,10 @@ const CarbonImpactSchema = new mongoose.Schema(
     totalCO2KgPerYear: { type: Number, default: 0 },
     recoverableCO2KgPerYear: { type: Number, default: 0 },
     equivalentTreesNeeded: { type: Number, default: 0 },
-    kgCO2PerGBPerYear: { type: Number, default: 2.5 }, // Industry constant
+    kgCO2PerGBPerYear: { type: Number, default: 2.5 },
   },
   { _id: false }
 );
-
-// ─────────────────────────────────────────────
-// Sub-schema: Storage Recovery Details
-// ─────────────────────────────────────────────
 const StorageRecoverySchema = new mongoose.Schema(
   {
     duplicateSizeBytes: { type: Number, default: 0 },
@@ -110,16 +98,12 @@ const StorageRecoverySchema = new mongoose.Schema(
   { _id: false }
 );
 
-// ─────────────────────────────────────────────
-// Sub-schema: Waste Score Breakdown
-// ─────────────────────────────────────────────
 const WasteScoreSchema = new mongoose.Schema(
   {
     overallScore: { type: Number, default: 0, min: 0, max: 100 },
     duplicateScore: { type: Number, default: 0 },
     inactiveScore: { type: Number, default: 0 },
     largeUnusedScore: { type: Number, default: 0 },
-    // Grade: A (0-20), B (21-40), C (41-60), D (61-80), F (81-100)
     grade: {
       type: String,
       enum: ['A', 'B', 'C', 'D', 'F'],
@@ -129,10 +113,6 @@ const WasteScoreSchema = new mongoose.Schema(
   },
   { _id: false }
 );
-
-// ─────────────────────────────────────────────
-// Sub-schema: Summary Statistics
-// ─────────────────────────────────────────────
 const SummarySchema = new mongoose.Schema(
   {
     totalFiles: { type: Number, default: 0 },
@@ -150,10 +130,6 @@ const SummarySchema = new mongoose.Schema(
   },
   { _id: false }
 );
-
-// ─────────────────────────────────────────────
-// Main Analysis Session Schema
-// ─────────────────────────────────────────────
 const AnalysisSessionSchema = new mongoose.Schema(
   {
     sessionId: {
@@ -201,22 +177,18 @@ const AnalysisSessionSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    aiAnalysis: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
   },
   {
     timestamps: true,
     collection: 'analysis_sessions',
   }
 );
-
-// ─────────────────────────────────────────────
-// Indexes
-// ─────────────────────────────────────────────
 AnalysisSessionSchema.index({ status: 1, createdAt: -1 });
 AnalysisSessionSchema.index({ 'wasteScore.overallScore': -1 });
-
-// ─────────────────────────────────────────────
-// Virtual: age of session in hours
-// ─────────────────────────────────────────────
 AnalysisSessionSchema.virtual('ageInHours').get(function () {
   return Math.round((Date.now() - this.createdAt) / (1000 * 60 * 60));
 });

@@ -1,23 +1,11 @@
-/**
- * duplicateService.js
- * Detects duplicate files based on SHA256 hashes.
- * Groups files by hash and marks all beyond the first occurrence as duplicates.
- */
-
 const { v4: uuidv4 } = require('uuid');
 const { bytesToMB } = require('../utils/fileUtil');
 
 /**
- * Given an array of enriched file records (each having sha256Hash),
- * detect duplicates and return:
- *  - Updated files array with isDuplicate & duplicateGroupId flags
- *  - Duplicate groups metadata
- *
  * @param {Array<object>} files - Array of file record objects
  * @returns {{ files: Array<object>, duplicateGroups: Array<object> }}
  */
 const detectDuplicates = (files) => {
-  // Map: sha256Hash -> [file indices]
   const hashMap = new Map();
 
   files.forEach((file, idx) => {
@@ -31,7 +19,7 @@ const detectDuplicates = (files) => {
   const duplicateGroups = [];
 
   hashMap.forEach((indices, hash) => {
-    if (indices.length < 2) return; // Not a duplicate
+    if (indices.length < 2) return;
 
     const groupId = uuidv4();
     const groupFiles = [];
@@ -46,8 +34,6 @@ const detectDuplicates = (files) => {
         storagePath: files[idx].storagePath,
       });
     });
-
-    // Wasted bytes = (count - 1) * single file size (keep only one copy)
     const singleFileSizeBytes = files[indices[0]].sizeBytes || 0;
     const wastedBytes = singleFileSizeBytes * (indices.length - 1);
 
@@ -65,8 +51,6 @@ const detectDuplicates = (files) => {
 };
 
 /**
- * Calculate the total size of all duplicate files.
- * Keeps one copy per hash group; rest is "waste".
  * @param {Array<object>} files
  * @returns {number} - Total wasted bytes from duplicates
  */
@@ -83,7 +67,6 @@ const calcDuplicateWasteBytes = (files) => {
   let totalWaste = 0;
   hashMap.forEach((sizes) => {
     if (sizes.length > 1) {
-      // First copy is "kept"; rest are wasted
       const sorted = [...sizes].sort((a, b) => b - a);
       totalWaste += sorted.slice(1).reduce((acc, s) => acc + s, 0);
     }

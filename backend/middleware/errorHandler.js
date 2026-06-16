@@ -1,14 +1,4 @@
-/**
- * errorHandler.js
- * Global Express error handling middleware.
- * Must be registered AFTER all routes.
- */
-
 const { sendError } = require('../utils/responseUtil');
-
-/**
- * Handle Multer-specific errors.
- */
 const handleMulterError = (err, req, res, next) => {
   const multer = require('multer');
 
@@ -26,35 +16,21 @@ const handleMulterError = (err, req, res, next) => {
   }
   next(err);
 };
-
-/**
- * Handle Mongoose validation and cast errors.
- */
 const handleMongooseError = (err, req, res, next) => {
-  // Validation error
   if (err.name === 'ValidationError') {
     const messages = Object.values(err.errors).map((e) => e.message);
     return sendError(res, `Validation Error: ${messages.join(', ')}`, 400);
   }
-
-  // Duplicate key error (unique index violation)
   if (err.code === 11000) {
     const field = Object.keys(err.keyValue || {})[0] || 'field';
     return sendError(res, `Duplicate value for ${field}.`, 409);
   }
-
-  // CastError (bad ObjectId etc.)
   if (err.name === 'CastError') {
     return sendError(res, `Invalid value for field: ${err.path}`, 400);
   }
 
   next(err);
 };
-
-/**
- * Final catch-all error handler.
- */
-// eslint-disable-next-line no-unused-vars
 const globalErrorHandler = (err, req, res, next) => {
   console.error('[GlobalErrorHandler]', err);
 

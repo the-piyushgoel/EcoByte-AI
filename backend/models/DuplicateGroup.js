@@ -1,9 +1,4 @@
 const mongoose = require('mongoose');
-
-/**
- * DuplicateGroup tracks clusters of files that share the same SHA256 hash.
- * Each group holds all the file references found across different sessions.
- */
 const DuplicateGroupSchema = new mongoose.Schema(
   {
     groupId: {

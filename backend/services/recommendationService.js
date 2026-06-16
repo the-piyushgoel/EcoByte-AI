@@ -1,14 +1,5 @@
-/**
- * recommendationService.js
- * Rule-based recommendation engine.
- * Generates human-readable, actionable recommendations based on analysis results.
- */
-
 const { formatBytes, bytesToMB, bytesToGB } = require('../utils/fileUtil');
-
 /**
- * Generate an array of recommendation strings given analysis data.
- *
  * @param {object} params
  * @param {Array<object>} params.files          - Enriched file records
  * @param {Array<object>} params.duplicateGroups - Duplicate group metadata
@@ -31,8 +22,6 @@ const generateRecommendations = ({
     recommendations.push('No files were uploaded for analysis.');
     return recommendations;
   }
-
-  // ── 1. Duplicate file recommendations ───────────────────────────────────
   const duplicateFiles = files.filter((f) => f.isDuplicate);
   if (duplicateFiles.length > 0) {
     const wastedMB = bytesToMB(
@@ -51,15 +40,11 @@ const generateRecommendations = ({
       );
     }
   }
-
-  // ── 2. Inactive file recommendations ────────────────────────────────────
   const inactiveFiles = files.filter((f) => f.isInactive);
   if (inactiveFiles.length > 0) {
     const inactiveMB = bytesToMB(
       inactiveFiles.reduce((s, f) => s + f.sizeBytes, 0)
     );
-
-    // Find files inactive for 2+ years
     const veryOld = inactiveFiles.filter((f) => f.daysSinceModified >= 730);
     recommendations.push(
       `⏳  ${inactiveFiles.length} file${inactiveFiles.length > 1 ? 's' : ''} have not been modified in over a year, consuming ${inactiveMB.toFixed(2)} MB.`
@@ -71,8 +56,6 @@ const generateRecommendations = ({
       );
     }
   }
-
-  // ── 3. Storage recovery recommendation ──────────────────────────────────
   if (storageRecovery?.totalRecoverableGB > 0) {
     recommendations.push(
       `💾  Potential storage recovery: ${storageRecovery.totalRecoverableGB.toFixed(3)} GB (${storageRecovery.totalRecoverableMB.toFixed(2)} MB) by removing waste files.`
@@ -82,15 +65,11 @@ const generateRecommendations = ({
       `💾  Potential storage recovery: ${storageRecovery.totalRecoverableMB.toFixed(2)} MB by removing waste files.`
     );
   }
-
-  // ── 4. Carbon impact recommendation ─────────────────────────────────────
   if (carbonImpact?.recoverableCO2KgPerYear > 0) {
     recommendations.push(
       `🌱  By removing digital waste, you can reduce your carbon footprint by ~${carbonImpact.recoverableCO2KgPerYear.toFixed(2)} kg CO₂/year — equivalent to planting ${carbonImpact.equivalentTreesNeeded} tree${carbonImpact.equivalentTreesNeeded !== 1 ? 's' : ''}.`
     );
   }
-
-  // ── 5. Waste score recommendations ──────────────────────────────────────
   if (wasteScore?.grade === 'F' || wasteScore?.grade === 'D') {
     recommendations.push(
       `⚠️  Digital Waste Score: ${wasteScore.overallScore}/100 (${wasteScore.label}). Immediate cleanup is recommended to optimize storage efficiency.`
@@ -104,8 +83,6 @@ const generateRecommendations = ({
       `✅  Digital Waste Score: ${wasteScore.overallScore}/100 (${wasteScore.label}). Your storage is well-organized!`
     );
   }
-
-  // ── 6. File type diversity ───────────────────────────────────────────────
   const extMap = new Map();
   files.forEach((f) => {
     extMap.set(f.extension, (extMap.get(f.extension) || 0) + 1);
@@ -116,8 +93,6 @@ const generateRecommendations = ({
       `📎  ${Math.round((dominantExt[1] / totalFiles) * 100)}% of uploaded files are "${dominantExt[0]}" type. Consider archiving older files of this type.`
     );
   }
-
-  // ── 7. Large file alert ──────────────────────────────────────────────────
   const LARGE_THRESHOLD = 50 * 1024 * 1024; // 50 MB
   const largeFiles = files.filter((f) => f.sizeBytes >= LARGE_THRESHOLD);
   if (largeFiles.length > 0) {
@@ -128,8 +103,6 @@ const generateRecommendations = ({
       `📦  ${largeFiles.length} large file${largeFiles.length > 1 ? 's' : ''} (≥50 MB each) account for ${totalLargeMB.toFixed(2)} MB. Review if all are still needed.`
     );
   }
-
-  // Deduplicate and return
   return [...new Set(recommendations)];
 };
 

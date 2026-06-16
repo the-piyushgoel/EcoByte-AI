@@ -1,9 +1,3 @@
-/**
- * requestLogger.js
- * Simple HTTP request logger middleware.
- * Logs method, URL, status, and response time for every request.
- */
-
 const requestLogger = (req, res, next) => {
   const start = Date.now();
 

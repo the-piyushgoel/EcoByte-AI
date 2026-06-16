@@ -1,10 +1,4 @@
 /**
- * responseUtil.js
- * Standardized API response helpers.
- */
-
-/**
- * Send a successful JSON response.
  * @param {object} res - Express response object
  * @param {*} data - Payload to include
  * @param {string} [message] - Optional success message
@@ -18,9 +12,7 @@ const sendSuccess = (res, data, message = 'Success', statusCode = 200) => {
     timestamp: new Date().toISOString(),
   });
 };
-
 /**
- * Send an error JSON response.
  * @param {object} res - Express response object
  * @param {string} message - Error description
  * @param {number} [statusCode=500]
@@ -36,12 +28,9 @@ const sendError = (res, message = 'Internal Server Error', statusCode = 500, det
   if (details && process.env.NODE_ENV !== 'production') {
     body.details = details;
   }
-
   return res.status(statusCode).json(body);
 };
-
 /**
- * Send a paginated response.
  * @param {object} res
  * @param {Array} items
  * @param {number} total

@@ -1,16 +1,4 @@
-/**
- * carbonService.js
- * Estimates the environmental (CO2) impact of digital storage waste.
- *
- * Industry constant used:
- *   1 GB of unnecessary storage ≈ 2.5 kg CO₂ per year
- *
- * Tree absorption reference:
- *   An average tree absorbs ~22 kg CO₂ per year
- */
-
 const { bytesToGB } = require('../utils/fileUtil');
-
 const KG_CO2_PER_GB_PER_YEAR = 2.5;
 const KG_CO2_ABSORBED_PER_TREE_PER_YEAR = 22;
 
@@ -35,7 +23,6 @@ const treesNeededToOffset = (kgCO2) => {
 
 /**
  * Compute carbon impact metrics for the analysis session.
- *
  * @param {Array<object>} files - Enriched file records
  * @returns {{
  *   totalStorageGB: number,

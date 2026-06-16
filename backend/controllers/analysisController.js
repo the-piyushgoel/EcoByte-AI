@@ -1,8 +1,3 @@
-/**
- * analysisController.js
- * Handles HTTP layer for file upload and analysis operations.
- */
-
 const path = require('path');
 const fs = require('fs');
 
@@ -11,18 +6,13 @@ const DuplicateGroup = require('../models/DuplicateGroup');
 const { runAnalysisPipeline } = require('../services/analysisService');
 const { sendSuccess, sendError, sendPaginated } = require('../utils/responseUtil');
 
-// ─────────────────────────────────────────────────────────────────────────────
-// POST /api/analysis/upload
-// Upload files and trigger analysis pipeline
-// ─────────────────────────────────────────────────────────────────────────────
 const uploadAndAnalyze = async (req, res) => {
+  console.log("UPLOAD REQUEST RECEIVED");
   try {
     if (!req.files || req.files.length === 0) {
       return sendError(res, 'No files uploaded. Please select at least one file.', 400);
     }
 
-    // Parse client-supplied file metadata (lastModified, etc.)
-    // Frontend sends: fileMeta = JSON stringified { [originalName]: { lastModified, size } }
     let clientMetas = {};
     if (req.body.fileMeta) {
       try {
@@ -50,6 +40,7 @@ const uploadAndAnalyze = async (req, res) => {
         storageRecovery: session.storageRecovery,
         carbonImpact: session.carbonImpact,
         recommendations: session.recommendations,
+        aiAnalysis: session.aiAnalysis || null,
         processedAt: session.processedAt,
       },
       'Analysis completed successfully.',
@@ -61,10 +52,6 @@ const uploadAndAnalyze = async (req, res) => {
   }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /api/analysis/sessions
-// List all analysis sessions (paginated)
-// ─────────────────────────────────────────────────────────────────────────────
 const getAllSessions = async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page) || 1);
@@ -91,10 +78,6 @@ const getAllSessions = async (req, res) => {
   }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /api/analysis/sessions/:sessionId
-// Get a single session with full file list
-// ─────────────────────────────────────────────────────────────────────────────
 const getSessionById = async (req, res) => {
   try {
     const { sessionId } = req.params;
@@ -112,10 +95,6 @@ const getSessionById = async (req, res) => {
   }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /api/analysis/sessions/:sessionId/files
-// Get files for a session (with filtering & pagination)
-// ─────────────────────────────────────────────────────────────────────────────
 const getSessionFiles = async (req, res) => {
   try {
     const { sessionId } = req.params;
@@ -133,8 +112,6 @@ const getSessionFiles = async (req, res) => {
     }
 
     let files = session.files || [];
-
-    // Apply filters
     if (classification) {
       files = files.filter((f) => f.classification === classification);
     }
@@ -158,11 +135,6 @@ const getSessionFiles = async (req, res) => {
     return sendError(res, 'Failed to fetch files.', 500, error.message);
   }
 };
-
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /api/analysis/sessions/:sessionId/duplicates
-// Get duplicate groups for a session
-// ─────────────────────────────────────────────────────────────────────────────
 const getSessionDuplicates = async (req, res) => {
   try {
     const { sessionId } = req.params;
@@ -175,11 +147,6 @@ const getSessionDuplicates = async (req, res) => {
     return sendError(res, 'Failed to fetch duplicate groups.', 500, error.message);
   }
 };
-
-// ─────────────────────────────────────────────────────────────────────────────
-// DELETE /api/analysis/sessions/:sessionId
-// Delete a session and its stored uploads
-// ─────────────────────────────────────────────────────────────────────────────
 const deleteSession = async (req, res) => {
   try {
     const { sessionId } = req.params;
@@ -188,14 +155,11 @@ const deleteSession = async (req, res) => {
     if (!session) {
       return sendError(res, `Session "${sessionId}" not found.`, 404);
     }
-
-    // Remove uploaded files from disk (best-effort)
     const uploadBase = path.resolve(__dirname, '..', process.env.UPLOAD_DIR || 'uploads');
     const sessionFolderPattern = new RegExp(`session_.*`);
     try {
       const entries = fs.readdirSync(uploadBase);
       for (const entry of entries) {
-        // Find sub-folders whose files match this session's stored files
         const storedNames = new Set((session.files || []).map((f) => f.storedName));
         const entryPath = path.join(uploadBase, entry);
         if (fs.statSync(entryPath).isDirectory()) {
@@ -209,8 +173,6 @@ const deleteSession = async (req, res) => {
     } catch (fsErr) {
       console.warn('[analysisController] Could not clean up uploaded files:', fsErr.message);
     }
-
-    // Remove DB records
     await Promise.all([
       AnalysisSession.deleteOne({ sessionId }),
       DuplicateGroup.deleteMany({ sessionId }),
@@ -222,11 +184,6 @@ const deleteSession = async (req, res) => {
     return sendError(res, 'Failed to delete session.', 500, error.message);
   }
 };
-
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /api/analysis/stats
-// Aggregate stats across all sessions
-// ─────────────────────────────────────────────────────────────────────────────
 const getGlobalStats = async (req, res) => {
   try {
     const [stats] = await AnalysisSession.aggregate([

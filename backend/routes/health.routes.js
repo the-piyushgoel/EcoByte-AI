@@ -1,17 +1,7 @@
-/**
- * health.routes.js
- * Health check and server status endpoints.
- */
-
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
 const { sendSuccess } = require('../utils/responseUtil');
-
-/**
- * GET /api/health
- * Basic liveness probe.
- */
 router.get('/', (req, res) => {
   const dbState = ['disconnected', 'connected', 'connecting', 'disconnecting'];
   return sendSuccess(
